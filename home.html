@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>University Voting System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            scroll-behavior: smooth;
+        }
+        
+        .hero-gradient {
+            background-image: linear-gradient(135deg, #6366F1 0%, #3B82F6 50%, #2563EB 100%);
+        }
+        
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+        
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .pulse-slow {
+            animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        .feature-card {
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .cta-button {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .cta-button:after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
+        }
+        
+        .cta-button:hover:after {
+            left: 100%;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-indigo-900 via-blue-800 to-blue-700 text-white">
+    <!-- Navigation Bar -->
+    <nav class="bg-white bg-opacity-10 backdrop-filter backdrop-blur-lg fixed w-full z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-vote-yea text-2xl text-white"></i>
+                    </div>
+                    <div class="hidden md:block">
+                        <div class="ml-10 flex items-baseline space-x-4">
+                            <a href="#" class="px-3 py-2 rounded-md text-sm font-medium text-white bg-blue-600">Home</a>
+                            <a href="#how-it-works" class="px-3 py-2 rounded-md text-sm font-medium text-gray-200 hover:text-white hover:bg-blue-600">How It Works</a>
+                            <a href="#features" class="px-3 py-2 rounded-md text-sm font-medium text-gray-200 hover:text-white hover:bg-blue-600">Features</a>
+                            <a href="#faq" class="px-3 py-2 rounded-md text-sm font-medium text-gray-200 hover:text-white hover:bg-blue-600">FAQ</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-4 flex items-center md:ml-6">
+                        <a href="student/register.php" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-blue-600 bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Log In / Register
+                        </a>
+                    </div>
+                </div>
+                <div class="-mr-2 flex md:hidden">
+                    <button type="button" class="bg-blue-800 inline-flex items-center justify-center p-2 rounded-md text-gray-200 hover:text-white hover:bg-blue-700 focus:outline-none">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="pt-24 pb-16 hero-gradient">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="lg:flex lg:items-center lg:justify-between">
+                <div class="lg:w-1/2 animate__animated animate__fadeInLeft">
+                    <h1 class="text-5xl sm:text-6xl font-extrabold tracking-tight mb-4">
+                        University <span class="text-blue-200">Voting</span> System
+                    </h1>
+                    <p class="mt-3 text-xl text-blue-100 sm:mt-5">
+                        Secure, transparent, and easy-to-use online voting platform designed specifically for university elections and student governance.
+                    </p>
+                    <div class="mt-8 flex flex-col sm:flex-row sm:gap-4">
+                        <a href="student/register.php" class="cta-button inline-flex items-center justify-center px-8 py-4 border border-transparent rounded-full text-lg font-medium text-blue-700 bg-white shadow-lg hover:bg-blue-50 transform transition duration-300 hover:scale-105">
+                            <i class="fas fa-user-graduate mr-2"></i> Student Login
+                        </a>
+                        <a href="learn-more.html" class="mt-3 sm:mt-0 inline-flex items-center justify-center px-8 py-4 border border-transparent rounded-full text-lg font-medium text-white bg-blue-600 bg-opacity-30 backdrop-filter backdrop-blur-sm hover:bg-opacity-50 transform transition duration-300 hover:scale-105">
+                            Learn More <i class="fas fa-arrow-right ml-2"></i>
+                        </a>
+                        </a>
+                    </div>
+                </div>
+                <div class="mt-10 lg:mt-0 lg:w-1/2 flex justify-center animate__animated animate__fadeInRight">
+                    <div class="relative floating">
+                        <div class="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full filter blur-3xl opacity-30 pulse-slow"></div>
+                        <img src="/project-folder/vote.jpg" alt="Voting illustration" class="relative z-10 w-full max-w-md rounded-lg shadow-2xl">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
+                <path fill="#fff" fill-opacity="0.05" d="M0,288L48,272C96,256,192,224,288,197.3C384,171,480,149,576,165.3C672,181,768,235,864,234.7C960,235,1056,181,1152,170.7C1248,160,1344,192,1392,208L1440,224L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+            </svg>
+        </div>
+    </div>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="py-20 bg-gradient-to-b from-indigo-900 to-blue-900">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-3xl font-extrabold tracking-tight sm:text-4xl mb-12">
+                How It <span class="text-blue-400">Works</span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+                <div class="bg-white bg-opacity-10 p-8 rounded-xl backdrop-filter backdrop-blur-sm animate__animated animate__fadeInUp" style="animation-delay: 0.1s">
+                    <div class="inline-flex items-center justify-center p-4 bg-blue-500 rounded-full mb-5">
+                        <i class="fas fa-user-plus text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Register & Authenticate</h3>
+                    <p class="text-blue-100">Sign up with your university credentials and verify your identity for secure access.</p>
+                </div>
+                <div class="bg-white bg-opacity-10 p-8 rounded-xl backdrop-filter backdrop-blur-sm animate__animated animate__fadeInUp" style="animation-delay: 0.3s">
+                    <div class="inline-flex items-center justify-center p-4 bg-blue-500 rounded-full mb-5">
+                        <i class="fas fa-vote-yea text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Cast Your Vote</h3>
+                    <p class="text-blue-100">Browse candidates, review their platforms, and securely cast your vote within minutes.</p>
+                </div>
+                <div class="bg-white bg-opacity-10 p-8 rounded-xl backdrop-filter backdrop-blur-sm animate__animated animate__fadeInUp" style="animation-delay: 0.5s">
+                    <div class="inline-flex items-center justify-center p-4 bg-blue-500 rounded-full mb-5">
+                        <i class="fas fa-chart-bar text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">View Results</h3>
+                    <p class="text-blue-100">Watch real-time results and analytics as votes are tallied securely and transparently.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 bg-gradient-to-b from-blue-900 to-indigo-900">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-extrabold tracking-tight sm:text-4xl">
+                    Advanced <span class="text-blue-400">Features</span>
+                </h2>
+                <p class="mt-4 max-w-2xl mx-auto text-xl text-blue-200">
+                    Our platform offers everything you need for secure and transparent elections
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="feature-card bg-white bg-opacity-10 p-8 rounded-xl text-center">
+                    <div class="flex items-center justify-center h-16 w-16 rounded-full bg-blue-600 mx-auto mb-4">
+                        <i class="fas fa-lock text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Highly Secure</h3>
+                    <p class="text-blue-200">End-to-end encryption and blockchain technology ensure the integrity of every vote</p>
+                </div>
+                <div class="feature-card bg-white bg-opacity-10 p-8 rounded-xl text-center">
+                    <div class="flex items-center justify-center h-16 w-16 rounded-full bg-blue-600 mx-auto mb-4">
+                        <i class="fas fa-clock text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Real-Time Results</h3>
+                    <p class="text-blue-200">Watch as votes are counted and results are displayed instantly with beautiful visualizations</p>
+                </div>
+                <div class="feature-card bg-white bg-opacity-10 p-8 rounded-xl text-center">
+                    <div class="flex items-center justify-center h-16 w-16 rounded-full bg-blue-600 mx-auto mb-4">
+                        <i class="fas fa-user-check text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Fair & Transparent</h3>
+                    <p class="text-blue-200">Open verification system allows for complete transparency while preserving anonymity</p>
+                </div>
+                <div class="feature-card bg-white bg-opacity-10 p-8 rounded-xl text-center">
+                    <div class="flex items-center justify-center h-16 w-16 rounded-full bg-blue-600 mx-auto mb-4">
+                        <i class="fas fa-mobile-alt text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Multi-Platform</h3>
+                    <p class="text-blue-200">Vote from any device with our responsive platform optimized for desktop and mobile</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section id="faq" class="py-20 bg-gradient-to-b from-indigo-900 to-blue-800">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl font-extrabold tracking-tight text-center sm:text-4xl mb-12">
+                Frequently Asked <span class="text-blue-400">Questions</span>
+            </h2>
+            
+            <div class="space-y-8">
+                <div class="bg-white bg-opacity-10 rounded-xl p-6 backdrop-filter backdrop-blur-sm">
+                    <button class="flex w-full text-left">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-medium">How do I know my vote is secure?</h3>
+                            <div class="mt-2 text-blue-200">
+                                <p>We use end-to-end encryption and blockchain verification to ensure your vote cannot be tampered with or traced back to you personally.</p>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-down text-blue-400"></i>
+                    </button>
+                </div>
+                
+                <div class="bg-white bg-opacity-10 rounded-xl p-6 backdrop-filter backdrop-blur-sm">
+                    <button class="flex w-full text-left">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-medium">Can I change my vote after submitting?</h3>
+                            <div class="mt-2 text-blue-200">
+                                <p>Once submitted, votes are final to maintain election integrity. Make sure to review your choices before confirming.</p>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-down text-blue-400"></i>
+                    </button>
+                </div>
+                
+                <div class="bg-white bg-opacity-10 rounded-xl p-6 backdrop-filter backdrop-blur-sm">
+                    <button class="flex w-full text-left">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-medium">What if I have technical difficulties?</h3>
+                            <div class="mt-2 text-blue-200">
+                                <p>Our support team is available 24/7 during election periods. Contact us immediately and we'll assist you to ensure your vote counts.</p>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-down text-blue-400"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action -->
+    <section class="py-16 bg-gradient-to-r from-blue-600 to-indigo-700">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-3xl font-extrabold tracking-tight sm:text-4xl mb-6">
+                Ready to participate in your university's democratic process?
+            </h2>
+            <p class="text-xl text-blue-100 mb-8">
+                Make your voice heard in the upcoming election cycle
+            </p>
+            <a href="student/register.php" class="cta-button inline-flex items-center justify-center px-8 py-4 border border-transparent rounded-full text-lg font-medium text-blue-700 bg-white shadow-lg hover:bg-blue-50 transform transition duration-300 hover:scale-105">
+                <i class="fas fa-user-graduate mr-2"></i> Login Now
+            </a>
+        </div>
+    </section>
+
+    <!-- Help and Contact -->
+    <section class="py-16 bg-gradient-to-b from-indigo-700 to-indigo-900">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+                <div class="flex flex-col items-center p-6">
+                    <i class="fas fa-question-circle text-4xl mb-4 text-blue-400"></i>
+                    <h3 class="text-xl font-bold mb-2">Need Help?</h3>
+                    <p class="text-center text-blue-200 mb-4">Browse our comprehensive FAQ section or view our step-by-step guides</p>
+                    <a href="need-help.html" class="text-blue-400 hover:text-blue-300 font-medium">
+                        View Help Center <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+                
+                <div class="flex flex-col items-center p-6">
+                    <i class="fas fa-headset text-4xl mb-4 text-blue-400"></i>
+                    <h3 class="text-xl font-bold mb-2">Contact Support</h3>
+                    <p class="text-center text-blue-200 mb-4">Our support team is available 24/7 during election periods</p>
+                    <a href="contact.html" class="text-blue-400 hover:text-blue-300 font-medium">
+                        Contact Us <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+                
+                <div class="flex flex-col items-center p-6">
+                    <i class="fas fa-newspaper text-4xl mb-4 text-blue-400"></i>
+                    <h3 class="text-xl font-bold mb-2">Latest Updates</h3>
+                    <p class="text-center text-blue-200 mb-4">Stay informed about upcoming elections and system updates</p>
+                    <a href="#" class="text-blue-400 hover:text-blue-300 font-medium">
+                        View News <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-indigo-900 pt-12 pb-6">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">About</h3>
+                    <ul class="space-y-2">
+                        <li><a href="mission.html" class="text-blue-200 hover:text-white">Our Mission</a></li>
+                        <li><a href="security.html" class="text-blue-200 hover:text-white">Security</a></li>
+                        <li><a href="privacy.html" class="text-white hover:text-white">Privacy Policy</a></li>
+                        <li><a href="terms.html" class="text-blue-200 hover:text-white">Terms of Service</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Resources</h3>
+                    <ul class="space-y-2">
+                        <li><a href="help-center.html" class="text-blue-200 hover:text-white">Help Center</a></li>
+                        <li><a href="user-guide.html" class="text-blue-200 hover:text-white">User Guide</a></li>
+                        <li><a href="#" class="text-blue-200 hover:text-white">API Documentation</a></li>
+                        <li><a href="#" class="text-blue-200 hover:text-white">Developer Resources</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Features</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-blue-200 hover:text-white">Candidate Profiles</a></li>
+                        <li><a href="#" class="text-blue-200 hover:text-white">Real-time Results</a></li>
+                        <li><a href="#" class="text-blue-200 hover:text-white">Voter Statistics</a></li>
+                        <li><a href="#" class="text-blue-200 hover:text-white">Election Archives</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Connect</h3>
+                    <div class="flex space-x-4 mb-4">
+                        <a href="#" class="text-blue-200 hover:text-white"><i class="fab fa-twitter text-xl"></i></a>
+                        <a href="#" class="text-blue-200 hover:text-white"><i class="fab fa-facebook text-xl"></i></a>
+                        <a href="#" class="text-blue-200 hover:text-white"><i class="fab fa-instagram text-xl"></i></a>
+                        <a href="#" class="text-blue-200 hover:text-white"><i class="fab fa-linkedin text-xl"></i></a>
+                    </div>
+                    <p class="text-blue-200">Subscribe to our newsletter for updates</p>
+                    <div class="mt-2 flex">
+                        <input type="email" placeholder="Email address" class="px-4 py-2 rounded-l-md w-full focus:outline-none text-gray-800">
+                        <button class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-r-md">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-blue-800 pt-6 text-center text-sm text-blue-300">
+                <p>© 2025 University Voting System. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Animation on Scroll -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wow/1.1.2/wow.min.js"></script>
+    <script>
+        // Initialize animations
+        new WOW().init();
+        
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>
