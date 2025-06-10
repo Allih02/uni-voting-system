@@ -1,6 +1,6 @@
 <?php
 session_start();
-include '../db_connect.php'; // Include database connection
+include '../db_connect.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $registration_number = $_POST["registration"];
@@ -16,17 +16,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt->bind_result($id, $fullname, $password_hash);
         $stmt->fetch();
         
-        if (password_verify($password, $password_hash)) {
+        $password_valid = false;
+        
+        // Check if it's a bcrypt hash (starts with $2y$)
+        if (strpos($password_hash, '$2y$') === 0) {
+            $password_valid = password_verify($password, $password_hash);
+        } else {
+            // Fallback to SHA2 for old hashes
+            $password_valid = ($password_hash === hash('sha256', $password));
+        }
+        
+        if ($password_valid) {
             $_SESSION["user_id"] = $id;
             $_SESSION["fullname"] = $fullname;
             $_SESSION["registration_number"] = $registration_number;
-            header("Location: dashboard.php"); // Redirect to dashboard
+            header("Location: dashboard.php");
             exit();
         } else {
             echo "<script>alert('Invalid password.'); window.location.href='login.php';</script>";
         }
     } else {
-        echo "<script>alert('No account found with that registration number.'); window.location.href='register.php';</script>";
+        echo "<script>alert('No account found with that registration number.'); window.location.href='login.php';</script>";
     }
     
     $stmt->close();
@@ -399,9 +409,6 @@ $conn->close();
                 </button>
             </form>
             
-            <div class="register-link">
-                <p>Don't have an account? <a href="register.php">Register here</a></p>
-            </div>
         </div>
     </div>
     

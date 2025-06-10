@@ -1,54 +1,202 @@
 <?php
 session_start();
 if (!isset($_SESSION["user_id"])) {
-    header("Location: login.php"); // Redirect to login if not logged in
+    header("Location: login.php");
     exit();
 }
 
-// In a real implementation, you would fetch this from your database
-$user = [
-    "id" => $_SESSION["user_id"],
-    "fullname" => $_SESSION["fullname"],
-    "registration_number" => $_SESSION["registration_number"],
-    "email" => "student@university.edu", // Placeholder email
-    "department" => "Computer Science", // Placeholder department
-    "year_of_study" => "3rd Year", // Placeholder year
-    "voting_history" => [
-        [
-            "election_id" => 1,
-            "election_name" => "Student Council Elections 2024",
-            "voted_on" => "2024-04-15",
-            "status" => "Completed"
-        ]
-    ]
-];
+// Database connection
+$host = 'localhost';
+$db = 'university_voting_system';
+$user = 'root';
+$pass = '';
 
-// Check if form was submitted for profile update
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false
+    ]);
+} catch (PDOException $e) {
+    die("Database connection failed: " . $e->getMessage());
+}
+
+// Fetch user data from database
+try {
+    $stmt = $pdo->prepare("
+        SELECT u.*, 
+               COUNT(v.id) as vote_count,
+               MAX(v.voted_at) as last_vote_date
+        FROM users u 
+        LEFT JOIN votes v ON u.id = v.user_id 
+        WHERE u.id = ? 
+        GROUP BY u.id
+    ");
+    $stmt->execute([$_SESSION['user_id']]);
+    $user = $stmt->fetch();
+    
+    if (!$user) {
+        throw new Exception("User not found");
+    }
+    
+    // Fetch voting history
+    $stmt = $pdo->prepare("
+        SELECT v.voted_at, c.name as candidate_name, c.position, e.title as election_name
+        FROM votes v
+        JOIN candidates c ON v.candidate_id = c.id
+        LEFT JOIN elections e ON c.election_id = e.id
+        WHERE v.user_id = ?
+        ORDER BY v.voted_at DESC
+    ");
+    $stmt->execute([$_SESSION['user_id']]);
+    $voting_history = $stmt->fetchAll();
+    
+} catch (Exception $e) {
+    error_log("Profile data fetch error: " . $e->getMessage());
+    // Fallback data
+    $user = [
+        'id' => $_SESSION['user_id'],
+        'fullname' => $_SESSION['fullname'] ?? 'Student',
+        'registration_number' => $_SESSION['registration_number'] ?? 'Unknown',
+        'email' => 'student@university.edu',
+        'department' => 'Computer Science',
+        'year_of_study' => '3rd Year',
+        'phone' => '',
+        'address' => '',
+        'date_of_birth' => '',
+        'vote_count' => 0,
+        'last_vote_date' => null,
+        'created_at' => date('Y-m-d H:i:s')
+    ];
+    $voting_history = [];
+}
+
+// Handle form submissions
 $success_message = null;
 $error_message = null;
 
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["update_profile"])) {
-    // In a real implementation, you would validate and update the database
-    // This is just a simulation for the UI
-    $success_message = "Profile updated successfully!";
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Generate CSRF token if not exists
+    if (!isset($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
     
-    // Update session variables (in a real app, update DB first)
-    $_SESSION["fullname"] = $_POST["fullname"];
-    $user["fullname"] = $_POST["fullname"];
-    $user["email"] = $_POST["email"];
-    $user["department"] = $_POST["department"];
-    $user["year_of_study"] = $_POST["year_of_study"];
+    // Verify CSRF token
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        $error_message = "Security validation failed. Please try again.";
+    } else {
+        if (isset($_POST['update_profile'])) {
+            try {
+                // Validate and sanitize input
+                $fullname = trim($_POST['fullname']);
+                $email = trim($_POST['email']);
+                $department = trim($_POST['department']);
+                $year_of_study = trim($_POST['year_of_study']);
+                $phone = trim($_POST['phone'] ?? '');
+                $address = trim($_POST['address'] ?? '');
+                $date_of_birth = $_POST['date_of_birth'] ?? null;
+                
+                // Validation
+                if (empty($fullname) || empty($email)) {
+                    throw new Exception("Full name and email are required.");
+                }
+                
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    throw new Exception("Please enter a valid email address.");
+                }
+                
+                // Check if email is already taken by another user
+                $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+                $stmt->execute([$email, $_SESSION['user_id']]);
+                if ($stmt->fetch()) {
+                    throw new Exception("This email is already registered to another user.");
+                }
+                
+                // Update user profile
+                $stmt = $pdo->prepare("
+                    UPDATE users 
+                    SET fullname = ?, email = ?, department = ?, year_of_study = ?, 
+                        phone = ?, address = ?, date_of_birth = ?, updated_at = NOW()
+                    WHERE id = ?
+                ");
+                
+                $stmt->execute([
+                    $fullname, $email, $department, $year_of_study,
+                    $phone, $address, $date_of_birth ?: null, $_SESSION['user_id']
+                ]);
+                
+                // Update session variables
+                $_SESSION['fullname'] = $fullname;
+                
+                // Update local user data
+                $user['fullname'] = $fullname;
+                $user['email'] = $email;
+                $user['department'] = $department;
+                $user['year_of_study'] = $year_of_study;
+                $user['phone'] = $phone;
+                $user['address'] = $address;
+                $user['date_of_birth'] = $date_of_birth;
+                
+                $success_message = "Profile updated successfully!";
+                
+                // Log the update
+                error_log("Profile updated for user ID: " . $_SESSION['user_id']);
+                
+            } catch (Exception $e) {
+                $error_message = $e->getMessage();
+                error_log("Profile update error: " . $e->getMessage());
+            }
+        }
+        
+        if (isset($_POST['change_password'])) {
+            try {
+                $current_password = $_POST['current_password'];
+                $new_password = $_POST['new_password'];
+                $confirm_password = $_POST['confirm_password'];
+                
+                // Validation
+                if (empty($current_password) || empty($new_password) || empty($confirm_password)) {
+                    throw new Exception("All password fields are required.");
+                }
+                
+                if ($new_password !== $confirm_password) {
+                    throw new Exception("New passwords do not match.");
+                }
+                
+                if (strlen($new_password) < 8) {
+                    throw new Exception("New password must be at least 8 characters long.");
+                }
+                
+                // Verify current password
+                $stmt = $pdo->prepare("SELECT password_hash FROM users WHERE id = ?");
+                $stmt->execute([$_SESSION['user_id']]);
+                $stored_password = $stmt->fetchColumn();
+                
+                if (!password_verify($current_password, $stored_password)) {
+                    throw new Exception("Current password is incorrect.");
+                }
+                
+                // Update password
+                $new_password_hash = password_hash($new_password, PASSWORD_ARGON2ID);
+                $stmt = $pdo->prepare("UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?");
+                $stmt->execute([$new_password_hash, $_SESSION['user_id']]);
+                
+                $success_message = "Password changed successfully!";
+                
+                // Log the password change
+                error_log("Password changed for user ID: " . $_SESSION['user_id']);
+                
+            } catch (Exception $e) {
+                $error_message = $e->getMessage();
+                error_log("Password change error: " . $e->getMessage());
+            }
+        }
+    }
 }
 
-// Check if password change form was submitted
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
-    // In a real implementation, you would validate passwords and update the database
-    // This is just a simulation for the UI
-    if ($_POST["new_password"] !== $_POST["confirm_password"]) {
-        $error_message = "New passwords do not match!";
-    } else {
-        $success_message = "Password changed successfully!";
-    }
+// Generate CSRF token for forms
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 ?>
 
@@ -90,6 +238,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             background-color: #f1f5f9;
             color: var(--dark);
             line-height: 1.6;
+            min-height: 100vh;
         }
         
         .container {
@@ -98,7 +247,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             flex-direction: column;
         }
         
-        /* Navigation Bar */
+        /* Enhanced Responsive Navigation */
         .navbar {
             background-color: white;
             padding: 1rem 2rem;
@@ -109,12 +258,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             position: sticky;
             top: 0;
             z-index: 100;
+            flex-wrap: wrap;
         }
         
         .logo {
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-shrink: 0;
         }
         
         .logo i {
@@ -123,7 +274,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
         }
         
         .logo h1 {
-            font-size: 1.3rem;
+            font-size: clamp(1.1rem, 2.5vw, 1.3rem);
             font-weight: 700;
             color: var(--dark);
         }
@@ -132,6 +283,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             display: flex;
             align-items: center;
             gap: 20px;
+            flex-wrap: wrap;
         }
         
         .nav-link {
@@ -140,6 +292,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             font-weight: 500;
             transition: var(--transition);
             font-size: 0.9rem;
+            white-space: nowrap;
         }
         
         .nav-link:hover {
@@ -165,6 +318,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             align-items: center;
             gap: 8px;
             font-size: 0.9rem;
+            white-space: nowrap;
         }
         
         .logout-button:hover {
@@ -172,12 +326,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             color: var(--primary-dark);
         }
         
-        /* Main Content */
+        /* Main Content - Responsive */
         .main-content {
             flex: 1;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 3rem 1.5rem;
+            padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 3vw, 1.5rem);
             width: 100%;
         }
         
@@ -186,7 +340,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
         }
         
         .page-title {
-            font-size: 1.8rem;
+            font-size: clamp(1.5rem, 4vw, 1.8rem);
             font-weight: 700;
             margin-bottom: 0.5rem;
             position: relative;
@@ -207,20 +361,52 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
         .page-description {
             color: var(--gray);
             max-width: 700px;
+            font-size: clamp(0.9rem, 2vw, 1rem);
         }
         
-        /* Profile Content */
+        /* Responsive Profile Layout */
         .profile-content {
             display: grid;
-            grid-template-columns: 1fr 2fr;
+            grid-template-columns: 1fr;
             gap: 2rem;
         }
         
-        /* Profile Sidebar */
+        @media (min-width: 992px) {
+            .profile-content {
+                grid-template-columns: 350px 1fr;
+            }
+        }
+        
+        /* Profile Sidebar - Enhanced for Mobile */
         .profile-sidebar {
             display: flex;
             flex-direction: column;
             gap: 1.5rem;
+        }
+        
+        @media (max-width: 991px) {
+            .profile-sidebar {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .profile-sidebar > * {
+                flex: 1;
+                min-width: 280px;
+                max-width: 400px;
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .profile-sidebar {
+                flex-direction: column;
+            }
+            
+            .profile-sidebar > * {
+                width: 100%;
+                max-width: none;
+            }
         }
         
         .profile-card {
@@ -238,28 +424,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
         }
         
         .profile-avatar {
-            width: 120px;
-            height: 120px;
+            width: clamp(80px, 15vw, 120px);
+            height: clamp(80px, 15vw, 120px);
             background-color: white;
             border-radius: 50%;
             margin: 0 auto 1rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 3rem;
+            font-size: clamp(2rem, 6vw, 3rem);
             color: var(--primary);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
         
         .profile-name {
-            font-size: 1.5rem;
+            font-size: clamp(1.2rem, 3vw, 1.5rem);
             font-weight: 700;
             margin-bottom: 0.5rem;
         }
         
         .profile-id {
             opacity: 0.9;
-            font-size: 0.9rem;
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
         }
         
         .profile-body {
@@ -269,7 +455,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
         .profile-info-item {
             margin-bottom: 1rem;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
+            gap: 1rem;
         }
         
         .profile-info-icon {
@@ -281,8 +468,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 1rem;
             font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        
+        .profile-info-details {
+            flex: 1;
+            min-width: 0;
         }
         
         .profile-info-details h4 {
@@ -294,8 +486,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
         
         .profile-info-details p {
             font-weight: 600;
+            word-wrap: break-word;
         }
         
+        /* Enhanced Profile Navigation */
         .profile-navigation {
             background-color: white;
             border-radius: var(--border-radius);
@@ -322,6 +516,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             text-decoration: none;
             transition: var(--transition);
             border-left: 3px solid transparent;
+            cursor: pointer;
         }
         
         .profile-nav-link:hover {
@@ -342,7 +537,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             text-align: center;
         }
         
-        /* Profile Main */
+        /* Responsive Profile Main Content */
         .profile-main {
             display: flex;
             flex-direction: column;
@@ -362,6 +557,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
         }
         
         .profile-section-title {
@@ -373,11 +570,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             padding: 1.5rem;
         }
         
-        /* Form Styles */
+        /* Enhanced Responsive Form */
         .profile-form {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: 1fr;
             gap: 1.5rem;
+        }
+        
+        @media (min-width: 640px) {
+            .profile-form {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .form-group.full-width {
+                grid-column: span 2;
+            }
         }
         
         .form-group {
@@ -389,6 +596,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             margin-bottom: 0.5rem;
             font-weight: 500;
             font-size: 0.9rem;
+            color: var(--dark);
         }
         
         .form-control {
@@ -398,6 +606,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             border-radius: 8px;
             font-size: 1rem;
             transition: var(--transition);
+            background-color: white;
         }
         
         .form-control:focus {
@@ -409,10 +618,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
         .form-control[readonly] {
             background-color: var(--light);
             cursor: not-allowed;
+            color: var(--gray);
+        }
+        
+        textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        select.form-control {
+            cursor: pointer;
         }
         
         .form-submit {
-            grid-column: span 2;
+            grid-column: span 1;
+            margin-top: 1rem;
+        }
+        
+        @media (min-width: 640px) {
+            .form-submit {
+                grid-column: span 2;
+            }
         }
         
         .btn {
@@ -426,6 +652,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            text-decoration: none;
+            justify-content: center;
+            min-width: 120px;
         }
         
         .btn-primary {
@@ -434,9 +663,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             box-shadow: var(--button-shadow);
         }
         
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 10px rgba(99, 102, 241, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
         
         .btn-outline {
@@ -449,36 +684,57 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             background-color: rgba(99, 102, 241, 0.05);
         }
         
-        /* Alert */
+        /* Alert Messages - Enhanced */
         .alert {
-            padding: 1rem;
+            padding: 1rem 1.5rem;
             border-radius: 8px;
             margin-bottom: 1.5rem;
             display: flex;
             align-items: center;
             gap: 10px;
+            animation: slideIn 0.3s ease;
         }
         
         .alert-success {
             background-color: rgba(16, 185, 129, 0.1);
             color: var(--secondary);
             border: 1px solid rgba(16, 185, 129, 0.2);
+            border-left: 4px solid var(--secondary);
         }
         
         .alert-danger {
             background-color: rgba(239, 68, 68, 0.1);
             color: var(--danger);
             border: 1px solid rgba(239, 68, 68, 0.2);
+            border-left: 4px solid var(--danger);
         }
         
         .alert i {
             font-size: 1.2rem;
         }
         
-        /* Voting History */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Voting History Table - Responsive */
+        .voting-history-container {
+            overflow-x: auto;
+            margin: -1.5rem;
+            padding: 1.5rem;
+        }
+        
         .voting-history-table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 600px;
         }
         
         .voting-history-table th, 
@@ -491,6 +747,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
         .voting-history-table th {
             font-weight: 600;
             color: var(--gray);
+            font-size: 0.9rem;
+            background-color: var(--light);
+        }
+        
+        .voting-history-table td {
             font-size: 0.9rem;
         }
         
@@ -512,145 +773,141 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             color: var(--warning);
         }
         
-        /* Password Section */
+        /* Enhanced Password Section */
         .password-section .profile-form {
             grid-template-columns: 1fr;
             max-width: 500px;
         }
         
-        .password-section .form-submit {
-            grid-column: span 1;
+        .password-strength-meter {
+            margin-top: 0.5rem;
+            height: 4px;
+            background-color: var(--light-gray);
+            border-radius: 2px;
+            overflow: hidden;
         }
         
-        /* Notifications Section */
-        .notification-options {
-            display: grid;
-            gap: 1rem;
+        .password-strength-bar {
+            height: 100%;
+            width: 0%;
+            transition: all 0.3s ease;
         }
         
-        .notification-option {
-            display: flex;
-            align-items: center;
+        .strength-weak { background-color: var(--danger); }
+        .strength-medium { background-color: var(--warning); }
+        .strength-strong { background-color: var(--secondary); }
+        
+        .password-requirements {
+            margin-top: 1rem;
             padding: 1rem;
-            border: 1px solid var(--light-gray);
+            background-color: var(--light);
             border-radius: 8px;
-            transition: var(--transition);
-        }
-        
-        .notification-option:hover {
-            border-color: var(--primary-light);
-        }
-        
-        .notification-checkbox {
-            margin-right: 1rem;
-            width: 20px;
-            height: 20px;
-        }
-        
-        .notification-details h4 {
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 0.2rem;
-        }
-        
-        .notification-details p {
-            color: var(--gray);
             font-size: 0.9rem;
         }
         
-        /* Tab Control */
+        .requirement-list {
+            list-style: none;
+            margin-top: 0.5rem;
+        }
+        
+        .requirement-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .requirement-item i {
+            width: 16px;
+            font-size: 0.8rem;
+        }
+        
+        .requirement-met {
+            color: var(--secondary);
+        }
+        
+        .requirement-unmet {
+            color: var(--gray);
+        }
+        
+        /* Stats Cards in Profile */
+        .profile-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-card {
+            background: var(--light);
+            padding: 1.5rem 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+        
+        /* Loading States */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--light-gray);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Tab Content */
         .tab-content {
             display: none;
         }
         
         .tab-content.active {
             display: block;
+            animation: fadeIn 0.3s ease;
         }
         
-        /* Footer */
-        .footer {
-            background-color: var(--dark);
-            color: white;
-            padding: 3rem 2rem;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
-        .footer-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
-        }
-        
-        .footer-section h4 {
-            font-size: 1.2rem;
-            margin-bottom: 1.5rem;
-            font-weight: 600;
-            position: relative;
-            padding-bottom: 10px;
-        }
-        
-        .footer-section h4::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 40px;
-            height: 3px;
-            background-color: var(--primary);
-        }
-        
-        .footer-section p {
-            margin-bottom: 1rem;
-            opacity: 0.8;
-            font-size: 0.9rem;
-        }
-        
-        .footer-links {
-            list-style: none;
-        }
-        
-        .footer-links li {
-            margin-bottom: 0.8rem;
-        }
-        
-        .footer-links a {
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            transition: var(--transition);
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .footer-links a:hover {
-            color: var(--primary-light);
-        }
-        
-        .footer-bottom {
-            text-align: center;
-            padding-top: 2rem;
-            margin-top: 2rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 0.9rem;
-            opacity: 0.7;
-        }
-        
-        /* Responsive Design */
-        @media (max-width: 992px) {
-            .profile-content {
-                grid-template-columns: 1fr;
+        /* Mobile-specific Styles */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 1rem;
             }
             
-            .profile-sidebar {
-                flex-direction: row;
-                flex-wrap: wrap;
-            }
-            
-            .profile-card, .profile-navigation {
-                flex: 1;
-                min-width: 300px;
+            .main-content {
+                padding: 1.5rem 1rem;
             }
             
             .profile-form {
@@ -660,52 +917,69 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             .form-submit {
                 grid-column: span 1;
             }
-        }
-        
-        @media (max-width: 768px) {
-            .navbar {
-                padding: 1rem;
+            
+            .voting-history-table {
+                font-size: 0.8rem;
             }
             
-            .logo h1 {
-                font-size: 1.1rem;
-            }
-            
-            .main-content {
-                padding: 2rem 1rem;
-            }
-            
-            .page-title {
-                font-size: 1.5rem;
-            }
-            
-            .profile-sidebar {
-                flex-direction: column;
-            }
-            
-            .profile-card, .profile-navigation {
-                width: 100%;
+            .voting-history-table th,
+            .voting-history-table td {
+                padding: 0.75rem 0.5rem;
             }
         }
         
         @media (max-width: 576px) {
-            .nav-links {
-                display: none;
-            }
-            
             .profile-header {
-                padding: 1.5rem;
+                padding: 1.5rem 1rem;
             }
             
-            .profile-avatar {
-                width: 90px;
-                height: 90px;
-                font-size: 2.5rem;
+            .profile-body {
+                padding: 1rem;
             }
             
-            .voting-history-table {
-                display: block;
-                overflow-x: auto;
+            .profile-section-body {
+                padding: 1rem;
+            }
+            
+            .btn {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+            
+            .profile-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        /* Accessibility Improvements */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        
+        /* High contrast mode */
+        @media (prefers-contrast: high) {
+            .card, .profile-section {
+                border: 2px solid var(--dark);
+            }
+            
+            .btn-primary {
+                border: 2px solid var(--primary-dark);
             }
         }
     </style>
@@ -721,6 +995,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             <div class="nav-links">
                 <a href="dashboard.php" class="nav-link">Dashboard</a>
                 <a href="profile.php" class="nav-link active">Profile</a>
+                <a href="contact.php" class="nav-link">Support</a>
             </div>
             <a href="logout.php" class="logout-button">
                 <i class="fas fa-sign-out-alt"></i> Logout
@@ -732,20 +1007,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
             <!-- Page Header -->
             <div class="page-header">
                 <h1 class="page-title">My Profile</h1>
-                <p class="page-description">Manage your account settings and view your voting history.</p>
+                <p class="page-description">Manage your account settings, view your voting history, and update your personal information.</p>
             </div>
             
+            <!-- Alert Messages -->
             <?php if ($success_message): ?>
             <div class="alert alert-success">
                 <i class="fas fa-check-circle"></i>
-                <span><?php echo $success_message; ?></span>
+                <span><?php echo htmlspecialchars($success_message); ?></span>
             </div>
             <?php endif; ?>
             
             <?php if ($error_message): ?>
             <div class="alert alert-danger">
                 <i class="fas fa-exclamation-circle"></i>
-                <span><?php echo $error_message; ?></span>
+                <span><?php echo htmlspecialchars($error_message); ?></span>
             </div>
             <?php endif; ?>
             
@@ -759,8 +1035,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
                             <div class="profile-avatar">
                                 <i class="fas fa-user"></i>
                             </div>
-                            <h2 class="profile-name"><?php echo $user["fullname"]; ?></h2>
-                            <p class="profile-id"><?php echo $user["registration_number"]; ?></p>
+                            <h2 class="profile-name"><?php echo htmlspecialchars($user['fullname']); ?></h2>
+                            <p class="profile-id"><?php echo htmlspecialchars($user['registration_number']); ?></p>
                         </div>
                         <div class="profile-body">
                             <div class="profile-info-item">
@@ -769,7 +1045,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
                                 </div>
                                 <div class="profile-info-details">
                                     <h4>Email</h4>
-                                    <p><?php echo $user["email"]; ?></p>
+                                    <p><?php echo htmlspecialchars($user['email']); ?></p>
                                 </div>
                             </div>
                             <div class="profile-info-item">
@@ -778,7 +1054,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
                                 </div>
                                 <div class="profile-info-details">
                                     <h4>Department</h4>
-                                    <p><?php echo $user["department"]; ?></p>
+                                    <p><?php echo htmlspecialchars($user['department']); ?></p>
                                 </div>
                             </div>
                             <div class="profile-info-item">
@@ -787,9 +1063,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
                                 </div>
                                 <div class="profile-info-details">
                                     <h4>Year of Study</h4>
-                                    <p><?php echo $user["year_of_study"]; ?></p>
+                                    <p><?php echo htmlspecialchars($user['year_of_study']); ?></p>
                                 </div>
                             </div>
+                            <?php if (!empty($user['phone'])): ?>
+                            <div class="profile-info-item">
+                                <div class="profile-info-icon">
+                                    <i class="fas fa-phone"></i>
+                                </div>
+                                <div class="profile-info-details">
+                                    <h4>Phone</h4>
+                                    <p><?php echo htmlspecialchars($user['phone']); ?></p>
+                                </div>
+                            </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                     
@@ -810,13 +1097,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
                                 </a>
                             </li>
                             <li>
-                                <a href="change_password.php" class="profile-nav-link" data-tab="password">
+                                <a href="#" class="profile-nav-link" data-tab="password">
                                     <i class="fas fa-lock"></i> Change Password
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="profile-nav-link" data-tab="notifications">
-                                    <i class="fas fa-bell"></i> Notifications
+                                <a href="#" class="profile-nav-link" data-tab="statistics">
+                                    <i class="fas fa-chart-bar"></i> My Statistics
                                 </a>
                             </li>
                         </ul>
@@ -829,41 +1116,74 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
                     <div class="profile-section tab-content active" id="personal-info">
                         <div class="profile-section-header">
                             <h3 class="profile-section-title">Personal Information</h3>
+                            <small style="color: var(--gray);">Update your profile details</small>
                         </div>
                         <div class="profile-section-body">
-                            <form action="" method="post" class="profile-form">
+                            <form action="" method="post" class="profile-form" id="profileForm">
+                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                
                                 <div class="form-group">
-                                    <label for="fullname">Full Name</label>
-                                    <input type="text" id="fullname" name="fullname" class="form-control" value="<?php echo $user["fullname"]; ?>" required>
+                                    <label for="fullname">Full Name *</label>
+                                    <input type="text" id="fullname" name="fullname" class="form-control" 
+                                           value="<?php echo htmlspecialchars($user['fullname']); ?>" required>
                                 </div>
+                                
                                 <div class="form-group">
                                     <label for="registration_number">Registration Number</label>
-                                    <input type="text" id="registration_number" name="registration_number" class="form-control" value="<?php echo $user["registration_number"]; ?>" readonly>
+                                    <input type="text" id="registration_number" name="registration_number" 
+                                           class="form-control" value="<?php echo htmlspecialchars($user['registration_number']); ?>" readonly>
                                 </div>
+                                
                                 <div class="form-group">
-                                    <label for="email">Email Address</label>
-                                    <input type="email" id="email" name="email" class="form-control" value="<?php echo $user["email"]; ?>" required>
+                                    <label for="email">Email Address *</label>
+                                    <input type="email" id="email" name="email" class="form-control" 
+                                           value="<?php echo htmlspecialchars($user['email']); ?>" required>
                                 </div>
+                                
+                                <div class="form-group">
+                                    <label for="phone">Phone Number</label>
+                                    <input type="tel" id="phone" name="phone" class="form-control" 
+                                           value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>" 
+                                           placeholder="+255 XXX XXX XXX">
+                                </div>
+                                
                                 <div class="form-group">
                                     <label for="department">Department</label>
                                     <select id="department" name="department" class="form-control">
-                                        <option value="Computer Science" <?php echo $user["department"] === "Computer Science" ? "selected" : ""; ?>>Computer Science</option>
-                                        <option value="Electrical Engineering" <?php echo $user["department"] === "Electrical Engineering" ? "selected" : ""; ?>>Electrical Engineering</option>
-                                        <option value="Business Administration" <?php echo $user["department"] === "Business Administration" ? "selected" : ""; ?>>Business Administration</option>
-                                        <option value="Mathematics" <?php echo $user["department"] === "Mathematics" ? "selected" : ""; ?>>Mathematics</option>
-                                        <option value="Physics" <?php echo $user["department"] === "Physics" ? "selected" : ""; ?>>Physics</option>
+                                        <option value="Computer Science" <?php echo $user['department'] === 'Computer Science' ? 'selected' : ''; ?>>Computer Science</option>
+                                        <option value="Electrical Engineering" <?php echo $user['department'] === 'Electrical Engineering' ? 'selected' : ''; ?>>Electrical Engineering</option>
+                                        <option value="Business Administration" <?php echo $user['department'] === 'Business Administration' ? 'selected' : ''; ?>>Business Administration</option>
+                                        <option value="Mathematics" <?php echo $user['department'] === 'Mathematics' ? 'selected' : ''; ?>>Mathematics</option>
+                                        <option value="Physics" <?php echo $user['department'] === 'Physics' ? 'selected' : ''; ?>>Physics</option>
+                                        <option value="Accounting" <?php echo $user['department'] === 'Accounting' ? 'selected' : ''; ?>>Accounting</option>
+                                        <option value="Finance" <?php echo $user['department'] === 'Finance' ? 'selected' : ''; ?>>Finance</option>
+                                        <option value="Economics" <?php echo $user['department'] === 'Economics' ? 'selected' : ''; ?>>Economics</option>
                                     </select>
                                 </div>
+                                
                                 <div class="form-group">
                                     <label for="year_of_study">Year of Study</label>
                                     <select id="year_of_study" name="year_of_study" class="form-control">
-                                        <option value="1st Year" <?php echo $user["year_of_study"] === "1st Year" ? "selected" : ""; ?>>1st Year</option>
-                                        <option value="2nd Year" <?php echo $user["year_of_study"] === "2nd Year" ? "selected" : ""; ?>>2nd Year</option>
-                                        <option value="3rd Year" <?php echo $user["year_of_study"] === "3rd Year" ? "selected" : ""; ?>>3rd Year</option>
-                                        <option value="4th Year" <?php echo $user["year_of_study"] === "4th Year" ? "selected" : ""; ?>>4th Year</option>
-                                        <option value="5th Year" <?php echo $user["year_of_study"] === "5th Year" ? "selected" : ""; ?>>5th Year</option>
+                                        <option value="1st Year" <?php echo $user['year_of_study'] === '1st Year' ? 'selected' : ''; ?>>1st Year</option>
+                                        <option value="2nd Year" <?php echo $user['year_of_study'] === '2nd Year' ? 'selected' : ''; ?>>2nd Year</option>
+                                        <option value="3rd Year" <?php echo $user['year_of_study'] === '3rd Year' ? 'selected' : ''; ?>>3rd Year</option>
+                                        <option value="4th Year" <?php echo $user['year_of_study'] === '4th Year' ? 'selected' : ''; ?>>4th Year</option>
+                                        <option value="5th Year" <?php echo $user['year_of_study'] === '5th Year' ? 'selected' : ''; ?>>5th Year</option>
                                     </select>
                                 </div>
+                                
+                                <div class="form-group">
+                                    <label for="date_of_birth">Date of Birth</label>
+                                    <input type="date" id="date_of_birth" name="date_of_birth" class="form-control" 
+                                           value="<?php echo $user['date_of_birth'] ?? ''; ?>">
+                                </div>
+                                
+                                <div class="form-group full-width">
+                                    <label for="address">Address</label>
+                                    <textarea id="address" name="address" class="form-control" rows="3" 
+                                              placeholder="Enter your address"><?php echo htmlspecialchars($user['address'] ?? ''); ?></textarea>
+                                </div>
+                                
                                 <div class="form-submit">
                                     <button type="submit" name="update_profile" class="btn btn-primary">
                                         <i class="fas fa-save"></i> Save Changes
@@ -877,33 +1197,47 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
                     <div class="profile-section tab-content" id="voting-history">
                         <div class="profile-section-header">
                             <h3 class="profile-section-title">Voting History</h3>
+                            <small style="color: var(--gray);">Your participation record</small>
                         </div>
                         <div class="profile-section-body">
-                            <?php if (empty($user["voting_history"])): ?>
-                                <p>You haven't participated in any elections yet.</p>
+                            <?php if (empty($voting_history)): ?>
+                                <div style="text-align: center; padding: 2rem;">
+                                    <i class="fas fa-vote-yea" style="font-size: 3rem; color: var(--gray); margin-bottom: 1rem;"></i>
+                                    <h3 style="color: var(--gray); margin-bottom: 0.5rem;">No Voting History</h3>
+                                    <p style="color: var(--gray);">You haven't participated in any elections yet.</p>
+                                    <a href="dashboard.php" class="btn btn-primary" style="margin-top: 1rem;">
+                                        <i class="fas fa-vote-yea"></i> Go Vote Now
+                                    </a>
+                                </div>
                             <?php else: ?>
-                                <table class="voting-history-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Election</th>
-                                            <th>Date</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($user["voting_history"] as $history): ?>
+                                <div class="voting-history-container">
+                                    <table class="voting-history-table">
+                                        <thead>
                                             <tr>
-                                                <td><?php echo $history["election_name"]; ?></td>
-                                                <td><?php echo date('M d, Y', strtotime($history["voted_on"])); ?></td>
-                                                <td>
-                                                    <span class="voting-status voting-status-<?php echo strtolower($history["status"]); ?>">
-                                                        <?php echo $history["status"]; ?>
-                                                    </span>
-                                                </td>
+                                                <th>Election</th>
+                                                <th>Candidate</th>
+                                                <th>Position</th>
+                                                <th>Date</th>
+                                                <th>Status</th>
                                             </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($voting_history as $vote): ?>
+                                                <tr>
+                                                    <td><?php echo htmlspecialchars($vote['election_name'] ?? 'General Election'); ?></td>
+                                                    <td><?php echo htmlspecialchars($vote['candidate_name']); ?></td>
+                                                    <td><?php echo htmlspecialchars($vote['position']); ?></td>
+                                                    <td><?php echo date('M d, Y', strtotime($vote['voted_at'])); ?></td>
+                                                    <td>
+                                                        <span class="voting-status voting-status-completed">
+                                                            Completed
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -912,23 +1246,58 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
                     <div class="profile-section tab-content password-section" id="password">
                         <div class="profile-section-header">
                             <h3 class="profile-section-title">Change Password</h3>
+                            <small style="color: var(--gray);">Update your account security</small>
                         </div>
                         <div class="profile-section-body">
-                            <form action="" method="post" class="profile-form">
+                            <form action="" method="post" class="profile-form" id="passwordForm">
+                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                
                                 <div class="form-group">
-                                    <label for="current_password">Current Password</label>
+                                    <label for="current_password">Current Password *</label>
                                     <input type="password" id="current_password" name="current_password" class="form-control" required>
                                 </div>
+                                
                                 <div class="form-group">
-                                    <label for="new_password">New Password</label>
+                                    <label for="new_password">New Password *</label>
                                     <input type="password" id="new_password" name="new_password" class="form-control" required>
+                                    <div class="password-strength-meter">
+                                        <div class="password-strength-bar" id="strengthBar"></div>
+                                    </div>
                                 </div>
+                                
                                 <div class="form-group">
-                                    <label for="confirm_password">Confirm New Password</label>
+                                    <label for="confirm_password">Confirm New Password *</label>
                                     <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
                                 </div>
+                                
+                                <div class="password-requirements">
+                                    <h4>Password Requirements:</h4>
+                                    <ul class="requirement-list">
+                                        <li class="requirement-item" id="length-req">
+                                            <i class="fas fa-times-circle requirement-unmet"></i>
+                                            At least 8 characters long
+                                        </li>
+                                        <li class="requirement-item" id="uppercase-req">
+                                            <i class="fas fa-times-circle requirement-unmet"></i>
+                                            Contains uppercase letter
+                                        </li>
+                                        <li class="requirement-item" id="lowercase-req">
+                                            <i class="fas fa-times-circle requirement-unmet"></i>
+                                            Contains lowercase letter
+                                        </li>
+                                        <li class="requirement-item" id="number-req">
+                                            <i class="fas fa-times-circle requirement-unmet"></i>
+                                            Contains number
+                                        </li>
+                                        <li class="requirement-item" id="special-req">
+                                            <i class="fas fa-times-circle requirement-unmet"></i>
+                                            Contains special character
+                                        </li>
+                                    </ul>
+                                </div>
+                                
                                 <div class="form-submit">
-                                    <button type="submit" name="change_password" class="btn btn-primary">
+                                    <button type="submit" name="change_password" class="btn btn-primary" id="passwordSubmitBtn" disabled>
                                         <i class="fas fa-lock"></i> Update Password
                                     </button>
                                 </div>
@@ -936,145 +1305,60 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["change_password"])) {
                         </div>
                     </div>
                     
-                    <!-- Notifications Section -->
-                    <div class="profile-section tab-content" id="notifications">
+                    <!-- Statistics Section -->
+                    <div class="profile-section tab-content" id="statistics">
                         <div class="profile-section-header">
-                            <h3 class="profile-section-title">Notification Preferences</h3>
+                            <h3 class="profile-section-title">My Statistics</h3>
+                            <small style="color: var(--gray);">Your participation overview</small>
                         </div>
                         <div class="profile-section-body">
-                            <form action="" method="post">
-                                <div class="notification-options">
-                                    <div class="notification-option">
-                                        <input type="checkbox" id="notify_new_elections" name="notify_new_elections" class="notification-checkbox" checked>
-                                        <div class="notification-details">
-                                            <h4>New Elections</h4>
-                                            <p>Get notified when new elections are announced</p>
-                                        </div>
+                            <div class="profile-stats">
+                                <div class="stat-card">
+                                    <div class="stat-value"><?php echo $user['vote_count']; ?></div>
+                                    <div class="stat-label">Total Votes</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value"><?php echo date('Y', strtotime($user['created_at'])); ?></div>
+                                    <div class="stat-label">Member Since</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">
+                                        <?php 
+                                        if ($user['last_vote_date']) {
+                                            $days = (new DateTime())->diff(new DateTime($user['last_vote_date']))->days;
+                                            echo $days;
+                                        } else {
+                                            echo '-';
+                                        }
+                                        ?>
                                     </div>
-                                    <div class="notification-option">
-                                        <input type="checkbox" id="notify_reminders" name="notify_reminders" class="notification-checkbox" checked>
-                                        <div class="notification-details">
-                                            <h4>Voting Reminders</h4>
-                                            <p>Receive reminders about approaching deadlines</p>
-                                        </div>
+                                    <div class="stat-label">Days Since Last Vote</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">
+                                        <?php echo $user['vote_count'] > 0 ? '100%' : '0%'; ?>
                                     </div>
-                                    <div class="notification-option">
-                                        <input type="checkbox" id="notify_results" name="notify_results" class="notification-checkbox" checked>
-                                        <div class="notification-details">
-                                            <h4>Election Results</h4>
-                                            <p>Get notified when results are published</p>
-                                        </div>
+                                    <div class="stat-label">Participation Rate</div>
+                                </div>
+                            </div>
+                            
+                            <div style="background: var(--light); padding: 1.5rem; border-radius: 8px;">
+                                <h4 style="margin-bottom: 1rem;">Account Information</h4>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 0.9rem;">
+                                    <div>
+                                        <strong>Account Created:</strong><br>
+                                        <?php echo date('F j, Y', strtotime($user['created_at'])); ?>
                                     </div>
-                                    <div class="notification-option">
-                                        <input type="checkbox" id="notify_announcements" name="notify_announcements" class="notification-checkbox">
-                                        <div class="notification-details">
-                                            <h4>General Announcements</h4>
-                                            <p>Receive updates about the voting system</p>
-                                        </div>
+                                    <div>
+                                        <strong>Last Updated:</strong><br>
+                                        <?php echo isset($user['updated_at']) ? date('F j, Y', strtotime($user['updated_at'])) : 'Never'; ?>
+                                    </div>
+                                    <div>
+                                        <strong>Account Status:</strong><br>
+                                        <span style="color: var(--secondary); font-weight: 600;">Active</span>
                                     </div>
                                 </div>
-                                <div style="margin-top: 1.5rem;">
-                                    <button type="submit" name="update_notifications" class="btn btn-primary">
-                                        <i class="fas fa-save"></i> Save Preferences
-                                    </button>
-                                </div>
-                            </form>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </main>
-        
-        <!-- Footer -->
-        <footer class="footer">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h4>About</h4>
-                    <p>The University Voting System is a secure platform designed to facilitate fair and transparent elections across the university community.</p>
-                </div>
-                
-                <div class="footer-section">
-                    <h4>Quick Links</h4>
-                    <ul class="footer-links">
-                        <li><a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
-                        <li><a href="profile.php"><i class="fas fa-user"></i> My Profile</a></li>
-                        <li><a href="help.php"><i class="fas fa-question-circle"></i> Help & Support</a></li>
-                    </ul>
-                </div>
-                
-                <div class="footer-section">
-                    <h4>Contact</h4>
-                    <ul class="footer-links">
-                        <li><a href="mailto:support@university.edu"><i class="fas fa-envelope"></i> support@university.edu</a></li>
-                        <li><a href="tel:+11234567890"><i class="fas fa-phone"></i> +1 (123) 456-7890</a></li>
-                        <li><a href="#"><i class="fas fa-map-marker-alt"></i> University Campus, Building A</a></li>
-                    </ul>
-                </div>
-            </div>
-            
-            <div class="footer-bottom">
-                <p>&copy; <?php echo date('Y'); ?> University Voting System. All rights reserved.</p>
-            </div>
-        </footer>
-    </div>
-    
-    <script>
-        // Tab Switching
-        const tabLinks = document.querySelectorAll('.profile-nav-link');
-        const tabContents = document.querySelectorAll('.tab-content');
-        
-        tabLinks.forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                
-                // Remove active class from all tab links
-                tabLinks.forEach(item => item.classList.remove('active'));
-                
-                // Add active class to clicked tab link
-                this.classList.add('active');
-                
-                // Hide all tab contents
-                tabContents.forEach(content => content.classList.remove('active'));
-                
-                // Show the selected tab content
-                const tabId = this.getAttribute('data-tab');
-                document.getElementById(tabId).classList.add('active');
-            });
-        });
-        
-        // Password match validation
-        const newPasswordInput = document.getElementById('new_password');
-        const confirmPasswordInput = document.getElementById('confirm_password');
-        
-        if (newPasswordInput && confirmPasswordInput) {
-            confirmPasswordInput.addEventListener('input', function() {
-                if (this.value !== newPasswordInput.value) {
-                    this.setCustomValidity('Passwords do not match');
-                } else {
-                    this.setCustomValidity('');
-                }
-            });
-            
-            newPasswordInput.addEventListener('input', function() {
-                if (confirmPasswordInput.value !== '' && this.value !== confirmPasswordInput.value) {
-                    confirmPasswordInput.setCustomValidity('Passwords do not match');
-                } else {
-                    confirmPasswordInput.setCustomValidity('');
-                }
-            });
-        }
-        
-        // Auto hide alerts after 5 seconds
-        const alerts = document.querySelectorAll('.alert');
-        alerts.forEach(alert => {
-            setTimeout(() => {
-                alert.style.opacity = '0';
-                alert.style.transition = 'opacity 0.5s';
-                setTimeout(() => {
-                    alert.style.display = 'none';
-                }, 500);
-            }, 5000);
-        });
-    </script>
-</body>
-</html>
+                </div

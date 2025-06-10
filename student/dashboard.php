@@ -1,21 +1,17 @@
 <?php
 session_start();
 if (!isset($_SESSION["user_id"])) {
-    header("Location: login.php"); // Redirect to login if not logged in
+    header("Location: login.php");
     exit();
 }
 
-// Get current election data (placeholder)
-// In a real implementation, you would fetch this from your database
+// Get current election data
 $current_election = [
     "id" => 1,
     "title" => "Student Council Elections 2025",
     "end_date" => "2025-04-30",
     "description" => "Cast your vote to elect the next Student Council representatives who will lead initiatives for the upcoming academic year."
 ];
-
-// Check if user has already voted (placeholder)
-$has_voted = false; // Set to true if user has already voted
 ?>
 
 <!DOCTYPE html>
@@ -37,6 +33,7 @@ $has_voted = false; // Set to true if user has already voted
             --gray: #64748b;
             --light-gray: #e2e8f0;
             --danger: #ef4444;
+            --warning: #f59e0b;
             --gradient: linear-gradient(135deg, #6366f1, #8b5cf6);
             --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             --button-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);
@@ -63,7 +60,7 @@ $has_voted = false; // Set to true if user has already voted
             flex-direction: column;
         }
         
-        /* Navigation Bar */
+        /* Navigation Bar - Enhanced Responsive */
         .navbar {
             background-color: white;
             padding: 1rem 2rem;
@@ -74,12 +71,14 @@ $has_voted = false; // Set to true if user has already voted
             position: sticky;
             top: 0;
             z-index: 100;
+            flex-wrap: wrap;
         }
         
         .logo {
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-shrink: 0;
         }
         
         .logo i {
@@ -97,6 +96,7 @@ $has_voted = false; // Set to true if user has already voted
             display: flex;
             align-items: center;
             gap: 20px;
+            flex-wrap: wrap;
         }
         
         .nav-link {
@@ -105,6 +105,7 @@ $has_voted = false; // Set to true if user has already voted
             font-weight: 500;
             transition: var(--transition);
             font-size: 0.9rem;
+            white-space: nowrap;
         }
         
         .nav-link:hover {
@@ -125,6 +126,7 @@ $has_voted = false; // Set to true if user has already voted
             align-items: center;
             gap: 8px;
             font-size: 0.9rem;
+            white-space: nowrap;
         }
         
         .logout-button:hover {
@@ -132,13 +134,17 @@ $has_voted = false; // Set to true if user has already voted
             color: var(--primary-dark);
         }
         
-        /* Hero Section */
+        /* Hero Section - Responsive */
         .hero {
-            background: var(--gradient), url('/api/placeholder/1200/600') center/cover no-repeat;
+            background: var(--gradient);
             color: white;
             padding: 4rem 2rem;
             text-align: center;
             position: relative;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .hero-content {
@@ -149,27 +155,16 @@ $has_voted = false; // Set to true if user has already voted
         }
         
         .hero h2 {
-            font-size: 2.5rem;
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
             font-weight: 800;
             margin-bottom: 1rem;
             line-height: 1.2;
         }
         
         .hero p {
-            font-size: 1.1rem;
+            font-size: clamp(1rem, 2vw, 1.1rem);
             margin-bottom: 2rem;
             opacity: 0.9;
-        }
-        
-        .hero::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.4);
-            z-index: 1;
         }
         
         .cta-button {
@@ -194,10 +189,10 @@ $has_voted = false; // Set to true if user has already voted
             box-shadow: 0 6px 10px -1px rgba(0, 0, 0, 0.2);
         }
         
-        /* Main Content */
+        /* Main Content - Responsive Grid */
         .main-content {
             flex: 1;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 3rem 1.5rem;
             width: 100%;
@@ -206,18 +201,21 @@ $has_voted = false; // Set to true if user has already voted
         .dashboard-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
         
         .greeting h2 {
-            font-size: 1.8rem;
+            font-size: clamp(1.5rem, 3vw, 1.8rem);
             font-weight: 700;
             margin-bottom: 0.5rem;
         }
         
         .greeting p {
             color: var(--gray);
+            font-size: clamp(0.9rem, 2vw, 1rem);
         }
         
         .user-badge {
@@ -228,6 +226,7 @@ $has_voted = false; // Set to true if user has already voted
             align-items: center;
             gap: 10px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            flex-shrink: 0;
         }
         
         .user-avatar {
@@ -251,10 +250,10 @@ $has_voted = false; // Set to true if user has already voted
             color: var(--gray);
         }
         
-        /* Dashboard Cards */
+        /* Enhanced Dashboard Cards with Digit Counters */
         .dashboard-cards {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1.5rem;
             margin-bottom: 2.5rem;
         }
@@ -263,7 +262,7 @@ $has_voted = false; // Set to true if user has already voted
             background-color: white;
             border-radius: var(--border-radius);
             box-shadow: var(--card-shadow);
-            padding: 1.5rem;
+            padding: 2rem;
             transition: var(--transition);
             position: relative;
             overflow: hidden;
@@ -271,31 +270,37 @@ $has_voted = false; // Set to true if user has already voted
         
         .card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.15);
         }
         
         .card-icon {
             background-color: var(--primary-light);
-            width: 50px;
-            height: 50px;
+            width: 60px;
+            height: 60px;
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
             color: var(--primary);
-            font-size: 1.5rem;
+            font-size: 1.8rem;
         }
         
         .card-title {
             font-size: 1.1rem;
             font-weight: 600;
-            margin-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            color: var(--dark);
         }
         
+        /* Digit Counter Animation */
         .card-value {
-            font-size: 1.8rem;
+            font-size: 2.5rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
+            color: var(--primary);
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
         }
         
         .card-description {
@@ -303,7 +308,45 @@ $has_voted = false; // Set to true if user has already voted
             font-size: 0.9rem;
         }
         
-        /* Election Card */
+        .card-change {
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+        
+        .card-change.positive {
+            color: var(--secondary);
+        }
+        
+        .card-change.negative {
+            color: var(--danger);
+        }
+        
+        /* Loading Animation for Counters */
+        .counter-loading {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+            height: 3rem;
+            width: 80px;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .counter-animated {
+            animation: countUp 0.6s ease-out;
+        }
+        
+        /* Responsive Election Card */
         .election-card {
             background-color: white;
             border-radius: var(--border-radius);
@@ -320,14 +363,14 @@ $has_voted = false; // Set to true if user has already voted
         }
         
         .election-header h3 {
-            font-size: 1.6rem;
+            font-size: clamp(1.3rem, 3vw, 1.6rem);
             font-weight: 700;
             margin-bottom: 0.5rem;
         }
         
         .election-header p {
             opacity: 0.9;
-            font-size: 1rem;
+            font-size: clamp(0.9rem, 2vw, 1rem);
             max-width: 700px;
         }
         
@@ -349,14 +392,6 @@ $has_voted = false; // Set to true if user has already voted
             text-align: center;
         }
         
-        .election-description {
-            margin-bottom: 2rem;
-            font-size: 1.05rem;
-            max-width: 700px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
         .vote-button {
             background: var(--gradient);
             color: white;
@@ -374,91 +409,32 @@ $has_voted = false; // Set to true if user has already voted
             text-decoration: none;
         }
         
-        .vote-button:hover {
+        .vote-button:hover:not(:disabled) {
             transform: translateY(-3px);
             box-shadow: 0 8px 15px rgba(99, 102, 241, 0.4);
         }
         
-        .vote-button i {
-            font-size: 1.2rem;
+        .vote-button:disabled {
+            background: var(--secondary);
+            cursor: not-allowed;
+            transform: none;
         }
         
-        /* Voting Process Section */
-        .section-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 1.5rem;
-            position: relative;
-            padding-bottom: 10px;
+        .vote-button.voted {
+            background: var(--secondary);
+            cursor: default;
         }
         
-        .section-title::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 60px;
-            height: 4px;
-            background: var(--gradient);
-            border-radius: 2px;
+        /* Responsive Media Queries */
+        @media (max-width: 1200px) {
+            .dashboard-cards {
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            }
         }
-        
-        .process-steps {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .step-card {
-            background-color: white;
-            border-radius: var(--border-radius);
-            box-shadow: var(--card-shadow);
-            padding: 1.5rem;
-            position: relative;
-            transition: var(--transition);
-        }
-        
-        .step-card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .step-number {
-            position: absolute;
-            top: -15px;
-            left: 1.5rem;
-            background: var(--gradient);
-            color: white;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-        
-        .step-icon {
-            color: var(--primary);
-            font-size: 2rem;
-            margin-bottom: 1rem;
-        }
-        
-        .step-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-        
-        .step-description {
-            color: var(--gray);
-            font-size: 0.9rem;
-        }
-        
+
         /* Footer */
         .footer {
-            background-color: var(--dark);
+            background-color: #30465c;
             color: white;
             padding: 3rem 2rem;
         }
@@ -525,38 +501,11 @@ $has_voted = false; // Set to true if user has already voted
             font-size: 0.9rem;
             opacity: 0.7;
         }
-        
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .fade-in {
-            animation: fadeIn 0.6s ease forwards;
-        }
-        
-        .fade-in-delay-1 {
-            animation: fadeIn 0.6s ease 0.2s forwards;
-            opacity: 0;
-        }
-        
-        .fade-in-delay-2 {
-            animation: fadeIn 0.6s ease 0.4s forwards;
-            opacity: 0;
-        }
-        
-        .fade-in-delay-3 {
-            animation: fadeIn 0.6s ease 0.6s forwards;
-            opacity: 0;
-        }
-        
-        /* Responsive Design */
+
         @media (max-width: 992px) {
             .dashboard-header {
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 1rem;
             }
             
             .user-badge {
@@ -570,53 +519,86 @@ $has_voted = false; // Set to true if user has already voted
                 margin-top: 1rem;
                 width: fit-content;
             }
+            
+            .main-content {
+                padding: 2rem 1rem;
+            }
         }
         
         @media (max-width: 768px) {
             .navbar {
                 padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
             }
             
-            .logo h1 {
-                font-size: 1.1rem;
+            .nav-links {
+                order: 1;
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .logout-button {
+                order: 2;
             }
             
             .hero {
                 padding: 3rem 1rem;
             }
             
-            .hero h2 {
-                font-size: 2rem;
+            .dashboard-cards {
+                grid-template-columns: 1fr;
+                gap: 1rem;
             }
             
-            .main-content {
-                padding: 2rem 1rem;
-            }
-            
-            .greeting h2 {
-                font-size: 1.5rem;
+            .card {
+                padding: 1.5rem;
             }
             
             .election-header {
                 padding: 1.5rem;
             }
             
-            .election-header h3 {
-                font-size: 1.4rem;
+            .election-body {
+                padding: 1.5rem;
             }
         }
         
         @media (max-width: 576px) {
-            .nav-links {
-                display: none;
-            }
-            
-            .dashboard-cards, .process-steps {
+            .dashboard-cards {
                 grid-template-columns: 1fr;
             }
             
-            .footer-content {
-                grid-template-columns: 1fr;
+            .card-value {
+                font-size: 2rem;
+            }
+            
+            .vote-button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --dark: #f8fafc;
+                --light: #1e293b;
+                --gray: #94a3b8;
+                --light-gray: #334155;
+            }
+            
+            body {
+                background-color: #0f172a;
+                color: var(--dark);
+            }
+            
+            .navbar {
+                background-color: #1e293b;
+            }
+            
+            .card, .election-card {
+                background-color: #1e293b;
             }
         }
     </style>
@@ -632,6 +614,7 @@ $has_voted = false; // Set to true if user has already voted
             <div class="nav-links">
                 <a href="dashboard.php" class="nav-link">Dashboard</a>
                 <a href="profile.php" class="nav-link">Profile</a>
+                <a href="contact.php" class="nav-link">Support</a>
             </div>
             <a href="logout.php" class="logout-button">
                 <i class="fas fa-sign-out-alt"></i> Logout
@@ -643,7 +626,7 @@ $has_voted = false; // Set to true if user has already voted
             <div class="hero-content">
                 <h2>Your Voice Matters</h2>
                 <p>Participate in the university elections and help shape the future of our academic community. Every vote counts in building a stronger institution.</p>
-                <a href="vote.php?election_id=<?php echo $current_election["id"]; ?>" class="cta-button">
+                <a href="#" class="cta-button" id="heroVoteBtn">
                     <i class="fas fa-vote-yea"></i> Vote Now
                 </a>
             </div>
@@ -654,7 +637,7 @@ $has_voted = false; // Set to true if user has already voted
             <!-- Dashboard Header -->
             <div class="dashboard-header">
                 <div class="greeting fade-in">
-                    <h2>Welcome, <?php echo $_SESSION["fullname"]; ?>!</h2>
+                    <h2>Welcome, <?php echo htmlspecialchars($_SESSION["fullname"]); ?>!</h2>
                     <p>Access your voting dashboard to participate in active elections.</p>
                 </div>
                 <div class="user-badge fade-in">
@@ -662,46 +645,61 @@ $has_voted = false; // Set to true if user has already voted
                         <i class="fas fa-user"></i>
                     </div>
                     <div class="user-info">
-                        <strong><?php echo $_SESSION["fullname"]; ?></strong>
-                        <p><?php echo $_SESSION["registration_number"]; ?></p>
+                        <strong><?php echo htmlspecialchars($_SESSION["fullname"]); ?></strong>
+                        <p><?php echo htmlspecialchars($_SESSION["registration_number"]); ?></p>
                     </div>
                 </div>
             </div>
             
-            <!-- Dashboard Cards -->
+            <!-- Enhanced Dashboard Cards with Live Statistics -->
             <div class="dashboard-cards">
                 <div class="card fade-in-delay-1">
-                    <div class="card-icon">
-                        <i class="fas fa-calendar-alt"></i>
+                    <div class="card-icon" style="background-color: rgba(99, 102, 241, 0.2); color: var(--primary);">
+                        <i class="fas fa-poll-h"></i>
                     </div>
                     <h3 class="card-title">Active Elections</h3>
-                    <p class="card-value">1</p>
+                    <div class="card-value counter-loading" id="activeElectionsCounter">-</div>
                     <p class="card-description">Current ongoing election campaigns</p>
+                    <div class="card-change positive" id="electionsChange">+0 this week</div>
                 </div>
                 
                 <div class="card fade-in-delay-2">
                     <div class="card-icon" style="background-color: rgba(16, 185, 129, 0.2); color: var(--secondary);">
-                        <i class="fas fa-check-circle"></i>
+                        <i class="fas fa-users"></i>
                     </div>
-                    <h3 class="card-title">Completed Votes</h3>
-                    <p class="card-value">0</p>
-                    <p class="card-description">Elections you've participated in</p>
+                    <h3 class="card-title">Total Candidates</h3>
+                    <div class="card-value counter-loading" id="candidatesCounter">-</div>
+                    <p class="card-description">Candidates running for positions</p>
+                    <div class="card-change positive" id="candidatesChange">Ready to serve</div>
                 </div>
                 
                 <div class="card fade-in-delay-3">
+                    <div class="card-icon" style="background-color: rgba(245, 158, 11, 0.2); color: var(--warning);">
+                        <i class="fas fa-vote-yea"></i>
+                    </div>
+                    <h3 class="card-title">Total Votes Cast</h3>
+                    <div class="card-value counter-loading" id="votesCounter">-</div>
+                    <p class="card-description">Community participation count</p>
+                    <div class="card-change" id="turnoutChange">
+                        <span id="turnoutPercentage">0%</span> turnout
+                    </div>
+                </div>
+                
+                <div class="card fade-in-delay-4">
                     <div class="card-icon" style="background-color: rgba(239, 68, 68, 0.2); color: var(--danger);">
                         <i class="fas fa-clock"></i>
                     </div>
                     <h3 class="card-title">Days Remaining</h3>
-                    <p class="card-value">16</p>
+                    <div class="card-value counter-loading" id="daysCounter">-</div>
                     <p class="card-description">Until current election closes</p>
+                    <div class="card-change" id="daysChange">Time to vote!</div>
                 </div>
             </div>
             
-            <!-- Current Election -->
-            <div class="election-card fade-in">
+            <!-- Current Election with Vote Status -->
+            <div class="election-card fade-in" id="electionCard">
                 <div class="election-header">
-                    <h3><?php echo $current_election["title"]; ?></h3>
+                    <h3><?php echo htmlspecialchars($current_election["title"]); ?></h3>
                     <p>An opportunity to elect your student representatives for the upcoming academic year.</p>
                     
                     <div class="deadline-badge">
@@ -712,54 +710,23 @@ $has_voted = false; // Set to true if user has already voted
                 
                 <div class="election-body">
                     <p class="election-description">
-                        <?php echo $current_election["description"]; ?>
+                        <?php echo htmlspecialchars($current_election["description"]); ?>
                     </p>
                     
-                    <?php if ($has_voted): ?>
-                        <button class="vote-button" style="background: var(--secondary); cursor: default;">
-                            <i class="fas fa-check-circle"></i> Vote Recorded
-                        </button>
-                    <?php else: ?>
-                        <a href="vote.php?election_id=<?php echo $current_election["id"]; ?>" class="vote-button">
-                            <i class="fas fa-vote-yea"></i> Vote Now
-                        </a>
-                    <?php endif; ?>
-                </div>
-            </div>
-            
-            <!-- Voting Process -->
-            <h2 class="section-title fade-in">How Voting Works</h2>
-            <div class="process-steps">
-                <div class="step-card fade-in-delay-1">
-                    <div class="step-number">1</div>
-                    <div class="step-icon">
-                        <i class="fas fa-user-check"></i>
+                    <button class="vote-button" id="mainVoteBtn">
+                        <i class="fas fa-vote-yea"></i> 
+                        <span id="voteButtonText">Vote Now</span>
+                    </button>
+                    
+                    <div id="voteStatus" style="display: none; margin-top: 1rem;">
+                        <p style="color: var(--secondary); font-weight: 600;">
+                            <i class="fas fa-check-circle"></i> Thank you for voting!
+                        </p>
                     </div>
-                    <h3 class="step-title">Authentication</h3>
-                    <p class="step-description">Login with your university credentials to access the secure voting portal.</p>
-                </div>
-                
-                <div class="step-card fade-in-delay-2">
-                    <div class="step-number">2</div>
-                    <div class="step-icon">
-                        <i class="fas fa-vote-yea"></i>
-                    </div>
-                    <h3 class="step-title">Cast Your Vote</h3>
-                    <p class="step-description">Select your preferred candidate from the ballot and confirm your choice.</p>
-                </div>
-                
-                <div class="step-card fade-in-delay-3">
-                    <div class="step-number">3</div>
-                    <div class="step-icon">
-                        <i class="fas fa-shield-alt"></i>
-                    </div>
-                    <h3 class="step-title">Secure Verification</h3>
-                    <p class="step-description">Your vote is encrypted and securely recorded in our system.</p>
                 </div>
             </div>
         </main>
-        
-        <!-- Footer -->
+            <!-- Footer -->
         <footer class="footer">
             <div class="footer-content">
                 <div class="footer-section">
@@ -791,39 +758,422 @@ $has_voted = false; // Set to true if user has already voted
             </div>
         </footer>
     </div>
+
+    </div>
     
     <script>
-        // Check if elements are in viewport for animations
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = 1;
-                    entry.target.style.transform = 'translateY(0)';
-                    observer.unobserve(entry.target);
+        // Dashboard Statistics Manager
+        class DashboardStats {
+            constructor() {
+                this.apiEndpoint = 'api/dashboard_stats.php';
+                this.refreshInterval = 30000; // 30 seconds
+                this.counters = {
+                    activeElections: document.getElementById('activeElectionsCounter'),
+                    candidates: document.getElementById('candidatesCounter'),
+                    votes: document.getElementById('votesCounter'),
+                    days: document.getElementById('daysCounter')
+                };
+                this.init();
+            }
+            
+            async init() {
+                await this.fetchStats();
+                this.startAutoRefresh();
+                this.checkVoteStatus();
+            }
+            
+            async fetchStats() {
+                try {
+                    const response = await fetch(this.apiEndpoint);
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.updateCounters(result.data);
+                        this.updateVoteButton(result.data.user_has_voted);
+                    } else {
+                        console.error('Failed to fetch stats:', result.error);
+                        this.showOfflineData();
+                    }
+                } catch (error) {
+                    console.error('Error fetching stats:', error);
+                    this.showOfflineData();
                 }
-            });
-        }, { threshold: 0.1 });
-        
-        // Observe all elements with fade-in classes
-        document.querySelectorAll('.fade-in, .fade-in-delay-1, .fade-in-delay-2, .fade-in-delay-3').forEach(element => {
-            observer.observe(element);
-        });
-        
-        // Add hover animations to buttons
-        const buttons = document.querySelectorAll('.vote-button, .cta-button');
-        buttons.forEach(button => {
-            if (!button.textContent.includes('Vote Recorded')) {
-                button.addEventListener('mouseenter', () => {
-                    button.style.transform = 'translateY(-3px)';
-                    button.style.boxShadow = '0 8px 15px rgba(99, 102, 241, 0.4)';
-                });
+            }
+            
+            updateCounters(data) {
+                // Animate counter updates
+                this.animateCounter(this.counters.activeElections, data.active_elections || 1);
+                this.animateCounter(this.counters.candidates, data.total_candidates || 2);
+                this.animateCounter(this.counters.votes, data.total_votes || 0);
+                this.animateCounter(this.counters.days, data.days_remaining || 16);
                 
-                button.addEventListener('mouseleave', () => {
-                    button.style.transform = '';
-                    button.style.boxShadow = '';
+                // Update turnout percentage
+                const turnoutElement = document.getElementById('turnoutPercentage');
+                if (turnoutElement) {
+                    turnoutElement.textContent = `${data.voter_turnout || 0}%`;
+                    
+                    // Color code turnout
+                    const turnoutChange = document.getElementById('turnoutChange');
+                    if (data.voter_turnout >= 70) {
+                        turnoutChange.className = 'card-change positive';
+                    } else if (data.voter_turnout >= 40) {
+                        turnoutChange.className = 'card-change';
+                    } else {
+                        turnoutChange.className = 'card-change negative';
+                    }
+                }
+                
+                // Update election status
+                if (!data.election_active) {
+                    document.getElementById('daysChange').textContent = 'Election ended';
+                    document.getElementById('daysChange').className = 'card-change negative';
+                }
+            }
+            
+            animateCounter(element, targetValue) {
+                if (!element) return;
+                
+                // Remove loading class
+                element.classList.remove('counter-loading');
+                element.classList.add('counter-animated');
+                
+                const startValue = parseInt(element.textContent) || 0;
+                const duration = 1000; // 1 second
+                const startTime = performance.now();
+                
+                const updateCounter = (currentTime) => {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    // Easing function for smooth animation
+                    const easeOut = 1 - Math.pow(1 - progress, 3);
+                    const currentValue = Math.round(startValue + (targetValue - startValue) * easeOut);
+                    
+                    element.textContent = currentValue.toLocaleString();
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(updateCounter);
+                    }
+                };
+                
+                requestAnimationFrame(updateCounter);
+            }
+            
+            updateVoteButton(hasVoted) {
+                const mainVoteBtn = document.getElementById('mainVoteBtn');
+                const heroVoteBtn = document.getElementById('heroVoteBtn');
+                const voteButtonText = document.getElementById('voteButtonText');
+                const voteStatus = document.getElementById('voteStatus');
+                
+                if (hasVoted) {
+                    // User has already voted
+                    mainVoteBtn.disabled = true;
+                    mainVoteBtn.classList.add('voted');
+                    voteButtonText.innerHTML = '<i class="fas fa-check-circle"></i> Vote Recorded';
+                    voteStatus.style.display = 'block';
+                    
+                    heroVoteBtn.style.display = 'none';
+                } else {
+                    // User can vote
+                    mainVoteBtn.disabled = false;
+                    mainVoteBtn.classList.remove('voted');
+                    mainVoteBtn.onclick = () => this.redirectToVote();
+                    heroVoteBtn.onclick = () => this.redirectToVote();
+                }
+            }
+            
+            redirectToVote() {
+                window.location.href = 'vote.php?election_id=1';
+            }
+            
+            checkVoteStatus() {
+                // Check if user just voted (from URL parameters)
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('success') === 'voted') {
+                    this.showVoteSuccessNotification();
+                    // Clean URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }
+            
+            showVoteSuccessNotification() {
+                const notification = document.createElement('div');
+                notification.className = 'vote-success-notification';
+                notification.innerHTML = `
+                    <div class="notification-content">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Your vote has been recorded successfully!</span>
+                    </div>
+                `;
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.classList.add('show');
+                }, 100);
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                    setTimeout(() => {
+                        document.body.removeChild(notification);
+                    }, 300);
+                }, 5000);
+            }
+            
+            showOfflineData() {
+                // Show fallback data when API fails
+                this.animateCounter(this.counters.activeElections, 1);
+                this.animateCounter(this.counters.candidates, 2);
+                this.animateCounter(this.counters.votes, 0);
+                this.animateCounter(this.counters.days, 16);
+            }
+            
+            startAutoRefresh() {
+                setInterval(() => {
+                    this.fetchStats();
+                }, this.refreshInterval);
+            }
+        }
+        
+        // Vote Status Manager
+        class VoteManager {
+            constructor() {
+                this.voteCount = 0;
+                this.hasVoted = false;
+                this.init();
+            }
+            
+            init() {
+                this.loadVoteStatus();
+            }
+            
+            async loadVoteStatus() {
+                try {
+                    const response = await fetch('api/check_vote_status.php');
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.hasVoted = result.has_voted;
+                        this.voteCount = result.vote_count;
+                        this.updateUI();
+                    }
+                } catch (error) {
+                    console.error('Error checking vote status:', error);
+                }
+            }
+            
+            updateUI() {
+                const voteButtons = document.querySelectorAll('.vote-button');
+                voteButtons.forEach(btn => {
+                    if (this.hasVoted) {
+                        btn.disabled = true;
+                        btn.classList.add('voted');
+                        btn.innerHTML = '<i class="fas fa-check-circle"></i> Vote Recorded';
+                    }
                 });
             }
+        }
+        
+        // Responsive Design Manager
+        class ResponsiveManager {
+            constructor() {
+                this.init();
+            }
+            
+            init() {
+                this.handleResize();
+                window.addEventListener('resize', () => this.handleResize());
+            }
+            
+            handleResize() {
+                const width = window.innerWidth;
+                
+                // Adjust navigation for mobile
+                if (width <= 768) {
+                    this.enableMobileNavigation();
+                } else {
+                    this.disableMobileNavigation();
+                }
+                
+                // Adjust cards layout
+                this.adjustCardsLayout(width);
+            }
+            
+            enableMobileNavigation() {
+                const navbar = document.querySelector('.navbar');
+                navbar.classList.add('mobile-nav');
+            }
+            
+            disableMobileNavigation() {
+                const navbar = document.querySelector('.navbar');
+                navbar.classList.remove('mobile-nav');
+            }
+            
+            adjustCardsLayout(width) {
+                const cards = document.querySelectorAll('.card');
+                cards.forEach(card => {
+                    if (width <= 576) {
+                        card.classList.add('mobile-card');
+                    } else {
+                        card.classList.remove('mobile-card');
+                    }
+                });
+            }
+        }
+        
+        // Animation Manager
+        class AnimationManager {
+            constructor() {
+                this.init();
+            }
+            
+            init() {
+                this.observeElements();
+            }
+            
+            observeElements() {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.style.opacity = 1;
+                            entry.target.style.transform = 'translateY(0)';
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.1 });
+                
+                // Observe all elements with fade-in classes
+                document.querySelectorAll('.fade-in, .fade-in-delay-1, .fade-in-delay-2, .fade-in-delay-3, .fade-in-delay-4').forEach(element => {
+                    observer.observe(element);
+                });
+            }
+        }
+        
+        // Initialize all managers when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            new DashboardStats();
+            new VoteManager();
+            new ResponsiveManager();
+            new AnimationManager();
         });
     </script>
+    
+    <style>
+        /* Additional styles for notifications and mobile enhancements */
+        .vote-success-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, var(--secondary), var(--secondary-light));
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            max-width: 300px;
+        }
+        
+        .vote-success-notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification-content {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .notification-content i {
+            font-size: 1.2rem;
+        }
+        
+        /* Mobile navigation enhancements */
+        .navbar.mobile-nav {
+            padding: 0.75rem 1rem;
+        }
+        
+        .navbar.mobile-nav .logo h1 {
+            font-size: 1.1rem;
+        }
+        
+        .navbar.mobile-nav .nav-links {
+            gap: 15px;
+        }
+        
+        .navbar.mobile-nav .nav-link {
+            font-size: 0.85rem;
+        }
+        
+        /* Mobile card enhancements */
+        .card.mobile-card {
+            padding: 1.25rem;
+        }
+        
+        .card.mobile-card .card-value {
+            font-size: 2rem;
+        }
+        
+        .card.mobile-card .card-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+        }
+        
+        /* Loading states */
+        .loading-shimmer {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        /* Enhanced responsive grid for very small screens */
+        @media (max-width: 480px) {
+            .main-content {
+                padding: 1rem 0.75rem;
+            }
+            
+            .hero {
+                padding: 2rem 1rem;
+            }
+            
+            .dashboard-cards {
+                gap: 0.75rem;
+            }
+            
+            .card {
+                padding: 1rem;
+            }
+            
+            .election-header, .election-body {
+                padding: 1rem;
+            }
+        }
+        
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            .card {
+                border: 2px solid var(--dark);
+            }
+            
+            .vote-button {
+                border: 2px solid white;
+            }
+        }
+        
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
 </body>
 </html>
